@@ -5,6 +5,7 @@ import pydirectinput
 import codecs
 import pygetwindow as gw
 import chardet
+from multiprocessing import Value, Manager
 
 def convert_to_utf8(input_file, output_file):
     """
@@ -35,7 +36,7 @@ class MusicHandler:
     pauseProgram = False
     data = None
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, max_notes, curr_note):
         self.file_path = file_path
         self.data = self.read_json_file(file_path)
 
@@ -49,7 +50,7 @@ class MusicHandler:
                 self.pauseProgram = False
                 time.sleep(2)
                 if gw.getActiveWindowTitle() == 'Sky':
-                    self.simulate_keyboard_presses(notes, bpm)
+                    self.simulate_keyboard_presses(notes, bpm, max_notes, curr_note)
     
 
     def get_hotkeys(self):
@@ -71,7 +72,7 @@ class MusicHandler:
     def pause(self):
         self.pauseProgram = True
     
-    def simulate_keyboard_presses(self, notes, bpm):
+    def simulate_keyboard_presses(self, notes, bpm, max_notes, curr_note):
 
         hold_time = 0.05
 
@@ -94,6 +95,9 @@ class MusicHandler:
         last_time_ms = 0
         pydirectinput.PAUSE=None
 
+        max_notes.value = len(notes)
+        curr_note.value = 0
+
         for note in notes:
             if self.pauseProgram: break
             current_time_ms = note[0]
@@ -107,9 +111,10 @@ class MusicHandler:
             key_to_press = note[1]
             if key_to_press:
                 pydirectinput.hotkey(*key_to_press, wait=hold_time)
-                print(f"Pressed {key_to_press} at time {current_time_ms}")
+                # print(f"Pressed {key_to_press} at time {current_time_ms}, note {curr_note.value}")
+                curr_note.value += 1
 
             last_time_ms = current_time_ms
 
-def mstart(file):
-    ms = MusicHandler(file)
+def mstart(file, max_notes, curr_note):
+    ms = MusicHandler(file, max_notes, curr_note)

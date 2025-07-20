@@ -1,11 +1,12 @@
 import os
 import shutil
-import flet as ft
-from flet import GridView, Container, NavigationRailDestination, Page, Text, IconButton, AppBar, colors, icons
-from reactive_menu import ResponsiveMenuLayout
-from music.automusic import mstart
 import multiprocessing
+from music.automusic import mstart
+import dearpygui.dearpygui as dpg
+import threading
 
+music_proc = None
+selected_song = None
 
 def stop_hotkeys():
     global music_proc
@@ -15,167 +16,107 @@ def stop_hotkeys():
         music_proc = None
         print("Stopped music")
 
+def copy_music(sender, app_data, user_data):
+    if not app_data['selections']:
+        return
 
-def main(page: Page, title="Sky: Keys interactive"):
+    destination_folder = "music/songs/"
+    os.makedirs(destination_folder, exist_ok=True)
 
-    page.title = title
+    for file_path in app_data['selections']:
+        file_name = os.path.basename(file_path)
+        new_file_path = os.path.join(destination_folder, file_name)
+        try:
+            shutil.copy(file_path, new_file_path)
+        except Exception as err:
+            print(f"Error copying {file_path}: {err}")
+        dpg.add_radio_button(items=[file_name], callback=restart_hotkeys, parent="music_list")
 
-    menu_button = IconButton(icons.MENU)
-
-    global music_proc
-    music_proc = None
-
-
-    def copy_music(e):
-        destination_folder = "music/songs/"
-
-        if not os.path.exists(destination_folder):
-            os.makedirs(destination_folder)
+def music_hotkeys():
+    global music_proc, selected_song, m, c, bar_thread
+    if not selected_song:
+        return
+    if not music_proc:
+        f = os.path.join("music/songs", selected_song)
+        m = multiprocessing.Value('i', 1)
+        c = multiprocessing.Value('i', 0)
+        music_proc = multiprocessing.Process(target=mstart, args=(f,m,c))
+        music_proc.start()
+        dpg.set_item_label("play_btn", "Pause")
+        print("Started music")
+        bar_thread = threading.Thread(target=update_progress_bar, args=(), daemon=True)
+        bar_thread.start()
+    else:
+        stop_hotkeys()
+        dpg.set_item_label("play_btn", "Play")
+        m = multiprocessing.Value('i', 1)
+        c = multiprocessing.Value('i', 0)
+        print("Stopped music")
         
-        if e.files is None:
-            return
 
-        for file in e.files:
-            new_file_path = os.path.join(destination_folder, file.name)
-            try:
-                shutil.copy(file.path, new_file_path)
-            except Exception as err:
-                print(f"Error copying {file.path}: {err}")
+def restart_hotkeys(sender, app_data, user_data):
+    global music_proc, selected_song
+    selected_song = app_data
+    print(f"Selected: {selected_song}")
+    if music_proc:
+        stop_hotkeys()
+        music_hotkeys()
+        print("Restarted music")
 
-            song = ft.Radio(value=file.name, label=file.name.replace(".txt", "").replace(".json", ""))
-            page.controls[0].controls[1].controls[1].content.content.controls.append(song)
-        page.update()
-       
+def update_progress_bar():
+    while c.value < m.value and m.value > 0 and music_proc.is_alive():
+        progress = c.value / m.value
+        dpg.set_value("progress_bar", min(progress, 1.0))
+    # print(c.value)
 
-    def music_hotkeys(e):
-        global music_proc
-        if not music_proc:
-            f = "music/songs/" + page.controls[0].controls[1].controls[1].content.value
-            music_proc = multiprocessing.Process(target=mstart, args=(f,))
-            music_proc.start()
-            e.control.icon = icons.PAUSE
-            print("Started music")
-        else:
-            music_proc.terminate()
-            music_proc.join()
-            music_proc = None
-            e.control.icon = icons.PLAY_ARROW
-            print("Stopped music")
-        page.update()
-    
+def get_thread_count():
+    print(threading.active_count())
 
-    def restart_hotkeys(e):
-        global music_proc
-        print(e.control.value)
-        if music_proc:
-            stop_hotkeys()
-            print("Started music")
-            f = "music/songs/" + e.control.value
-            music_proc = multiprocessing.Process(target=mstart, args=(f,))
-            music_proc.start()
+def main():
+    dpg.create_context()
+    dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600)
 
+    with dpg.window(label="Main", no_title_bar=True, no_resize=True, no_move=True, no_close=True, tag="main_window"):
+        # Scrollable content area
+        with dpg.child_window(tag="content_area", autosize_x=True, height=-50, horizontal_scrollbar=False):
+            dpg.add_button(label="Add music", callback=lambda: dpg.show_item("file_picker"))
+            dpg.add_button(label="Get threads", callback=get_thread_count)
+            dpg.add_spacer(height=10)
+            dpg.add_text("Songs:")
+            radio_list = []
+            with dpg.group(horizontal=False, tag="music_list"):
+                for midi_file in os.listdir("music/songs/"):
+                    if midi_file.endswith(".txt") or midi_file.endswith(".json"):
+                        radio_list.append(midi_file)
+                dpg.add_radio_button(items=radio_list, callback=restart_hotkeys, default_value=False)
 
-    def music_page():
-        music_view =ft.Column(scroll=True, expand=True)
-        fp = ft.FilePicker(on_result=copy_music)
-        add_btn = IconButton(icon=icons.ADD, content=Text("Add music"), on_click=lambda e: fp.pick_files(allow_multiple=True, allowed_extensions=['txt', 'json']))
-        music_view.controls.append(fp)
-        music_view.controls.append(add_btn)
-        for midi_file in os.listdir("music/songs/"):
-            if midi_file.endswith(".txt") or midi_file.endswith(".json"):
-                song = ft.Radio(value=midi_file, label=midi_file.replace(".txt", "").replace(".json", ""))
-                music_view.controls.append(song)
+        # Docked bottom bar
+        with dpg.group(horizontal=True):
+            dpg.add_button(label="Play", tag="play_btn", width=60, callback=music_hotkeys)
+            dpg.add_progress_bar(tag="progress_bar", default_value=0.0, width=640)
+            dpg.add_button(label="⚙", width=30, tag="settings_btn")
 
-        return ft.Container(content=ft.RadioGroup(content=music_view, on_change=restart_hotkeys), expand=True)
+    # File picker
+    with dpg.file_dialog(directory_selector=False, show=False, callback=copy_music, tag="file_picker", width=700, height=400):
+        dpg.add_file_extension("*.txt")
+        dpg.add_file_extension("*.json")
 
+    # Resize the child window to leave 50px for the bottom bar
+    def resize_content(sender, app_data):
+        width = dpg.get_viewport_client_width()
+        height = dpg.get_viewport_client_height()
+        dpg.set_item_width("main_window", width)
+        dpg.set_item_height("main_window", height)
+        dpg.set_item_height("content_area", height - 50)
 
-    def emotes_page():
-        grid_view = GridView(
-            runs_count=5,
-            max_extent=100,
-            child_aspect_ratio=1,
-            spacing=10,
-            expand=True,
-        )
-        for img_file in os.listdir("emotes/assets/pngs"):
-            if img_file.endswith(".png"):
-                img = Container(
-                    image_src=f"emotes/assets/pngs/{img_file}",
-                    width=50,
-                    height=50,
-                    ink=True,
-                    on_click=lambda e, label=img_file: open_dlg_modal(e, label),
-                )
-                grid_view.controls.append(img)
-
-        return grid_view
-
-    def close_dlg(e, label):
-        page.dialog.open = False
-        print(label + " saved!")
-        page.update()
-    
-    def open_dlg_modal(e, label):
-        dlg_modal = ft.AlertDialog(
-            title=ft.Text(label),
-            modal=True,
-            content=ft.Column([ft.Text("Input rows offset:"),
-                            ft.Slider(min=0, max=100, divisions=10, label="{value}%"),
-                            ft.Text("Bind a hotkey"),
-                            ft.Text("Ctrl+Shift+X")]),
-            actions=[
-                ft.TextButton("Save", on_click=lambda e, label=label: close_dlg(e, label)),
-            ],
-            actions_alignment=ft.MainAxisAlignment.END,
-            on_dismiss=lambda e: print("Modal dialog dismissed!"),
-        )
-
-
-        page.dialog = dlg_modal
-        dlg_modal.open = True
-        page.update()
-
-
-    page.window_width = 800
-    page.window_height = 600
-    page.appbar = AppBar(
-        leading=menu_button,
-        leading_width=40,
-        title=Text(title),
-        bgcolor=colors.DEEP_PURPLE_900,
-    )
-
-    pages = [
-        (
-            NavigationRailDestination(
-                icon=icons.FAVORITE_BORDER,
-                selected_icon=icons.FAVORITE,
-                label="Emotes",
-            ),
-            emotes_page(),
-        ),
-        (
-            NavigationRailDestination(
-                icon=icons.LIBRARY_MUSIC_OUTLINED,
-                selected_icon=icons.LIBRARY_MUSIC_ROUNDED,
-                label="Music",
-            ),
-            music_page(),
-        ),
-    ]
-
-    menu_layout = ResponsiveMenuLayout(page, pages)
-
-    play_btn = IconButton(icon=icons.PLAY_ARROW, on_click=lambda e: music_hotkeys(e))
-
-
-
-    page.add(menu_layout)
-    page.add(play_btn)
-
-    menu_button.on_click = lambda e: menu_layout.toggle_navigation()
+    dpg.set_viewport_resize_callback(resize_content)
+    resize_content(None, None)
+    dpg.setup_dearpygui()
+    dpg.show_viewport()
+    dpg.start_dearpygui()
+    dpg.destroy_context()
+    stop_hotkeys()
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    ft.app(target=main, assets_dir="emotes/assets")
-    stop_hotkeys()
+    main()
