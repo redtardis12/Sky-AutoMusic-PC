@@ -4,6 +4,7 @@ import multiprocessing
 from music.automusic import mstart
 import dearpygui.dearpygui as dpg
 import threading
+import json
 
 music_proc = None
 selected_song = None
@@ -57,6 +58,7 @@ def music_hotkeys():
 def restart_hotkeys(sender, app_data, user_data):
     global music_proc, selected_song
     selected_song = app_data
+    show_current_music_speed()
     print(f"Selected: {selected_song}")
     if music_proc:
         stop_hotkeys()
@@ -67,15 +69,35 @@ def update_progress_bar():
     while c.value < m.value and m.value > 0 and music_proc.is_alive():
         progress = c.value / m.value
         dpg.set_value("progress_bar", min(progress, 1.0))
-    # print(c.value)
 
 def get_thread_count():
     print(threading.active_count())
+
+def show_current_music_speed():
+    if not selected_song:
+        dpg.set_value("speed_slider", 0)
+        return
+    with open(os.path.join("music/songs", selected_song), 'r') as file:
+        data = json.load(file)
+        dpg.set_value("speed_slider", data[0]["bpm"])
+
+def change_current_music_speed(sender, app_data, user_data):
+    if not selected_song:
+        return
+    
+    with open(os.path.join("music/songs", selected_song), 'r') as file:
+        data = json.load(file)
+        data[0]["bpm"] = dpg.get_value("speed_slider")
+    with open(os.path.join("music/songs", selected_song), 'w') as file:
+        json.dump(data, file)
+    dpg.configure_item("modal_id", show=False)
+    restart_hotkeys(sender, selected_song, user_data)
 
 def main():
     dpg.create_context()
     dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600)
 
+    # Main window
     with dpg.window(label="Main", no_title_bar=True, no_resize=True, no_move=True, no_close=True, tag="main_window"):
         # Scrollable content area
         with dpg.child_window(tag="content_area", autosize_x=True, height=-50, horizontal_scrollbar=False):
@@ -95,6 +117,13 @@ def main():
             dpg.add_button(label="Play", tag="play_btn", width=60, callback=music_hotkeys)
             dpg.add_progress_bar(tag="progress_bar", default_value=0.0, width=640)
             dpg.add_button(label="⚙", width=30, tag="settings_btn")
+
+            with dpg.popup(dpg.last_item(), mousebutton=dpg.mvMouseButton_Left, modal=True, tag="modal_id"):
+                dpg.add_text("Change current music speed (Press Ctrl + LMB to input manually)")
+                dpg.add_slider_int(label="", min_value=1, max_value=800, default_value=1, tag="speed_slider", no_input=False)
+                dpg.add_button(label="Save", callback=change_current_music_speed)
+
+
 
     # File picker
     with dpg.file_dialog(directory_selector=False, show=False, callback=copy_music, tag="file_picker", width=700, height=400):
