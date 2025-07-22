@@ -31,6 +31,45 @@ def convert_to_utf8(input_file, output_file):
         json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 
+def assign_hotkey(field):
+    print(f"Press any key to assign as your hotkey for {field}...")
+    event = keyboard.read_event(suppress=True)
+    if event.event_type == keyboard.KEY_DOWN:
+        scan_code = event.scan_code
+        name = event.name
+        if name == 'esc':
+            return
+        
+        with open('config.json', 'r') as file:
+            config = json.load(file)
+        
+        config["music"][field] = {
+            "name": name,
+            "scan_code": scan_code
+        }
+        
+        with open('config.json', 'w') as file:
+            json.dump(config, file, indent=4)
+        
+        return name
+
+def assign_note_key(note_key):
+    event = keyboard.read_event(suppress=True)
+    if event.event_type == keyboard.KEY_DOWN:
+        name = event.name
+        if name == 'esc':
+            return
+        
+        with open('config.json', 'r') as file:
+            config = json.load(file)
+        
+        config["music"]["key_mapping"][note_key] = name
+        
+        with open('config.json', 'w') as file:
+            json.dump(config, file, indent=4)
+        
+        return name
+
 class MusicHandler:
     exitProgram = False
     pauseProgram = False
@@ -56,7 +95,7 @@ class MusicHandler:
     def get_hotkeys(self):
         with open('config.json', 'r') as file:
             config = json.load(file)
-            return config["music"]["start_key"], config["music"]["stop_key"]
+            return config["music"]["start_key"]["scan_code"], config["music"]["stop_key"]["scan_code"]
 
     def read_json_file(self, file_path):
         convert_to_utf8(self.file_path, self.file_path)

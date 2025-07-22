@@ -1,13 +1,16 @@
 import os
 import shutil
 import multiprocessing
-from music.automusic import mstart
+from music.automusic import mstart, assign_hotkey, assign_note_key
+from config import ConfigHandler
 import dearpygui.dearpygui as dpg
 import threading
 import json
 
 music_proc = None
 selected_song = None
+config = ConfigHandler("config.json")
+
 
 def stop_hotkeys():
     global music_proc
@@ -70,8 +73,6 @@ def update_progress_bar():
         progress = c.value / m.value
         dpg.set_value("progress_bar", min(progress, 1.0))
 
-def get_thread_count():
-    print(threading.active_count())
 
 def show_current_music_speed():
     if not selected_song:
@@ -93,17 +94,24 @@ def change_current_music_speed(sender, app_data, user_data):
     dpg.configure_item("modal_id", show=False)
     restart_hotkeys(sender, selected_song, user_data)
 
+def update_hotkeys_binds(sender, app_data, user_data):
+    if music_proc:
+        stop_hotkeys()
+    dpg.set_item_label(sender, config.assign_hotkey(user_data))
+    
+        
+    
+
 def main():
     dpg.create_context()
     dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600)
 
     # Main window
     with dpg.window(label="Main", no_title_bar=True, no_resize=True, no_move=True, no_close=True, tag="main_window"):
-        # Scrollable content area
+        with dpg.menu_bar():
+            dpg.add_menu_item(label="Add music", callback=lambda: dpg.show_item("file_picker"))
+            dpg.add_menu_item(label="Settings", callback=lambda: dpg.show_item("advanced_settings"))
         with dpg.child_window(tag="content_area", autosize_x=True, height=-50, horizontal_scrollbar=False):
-            dpg.add_button(label="Add music", callback=lambda: dpg.show_item("file_picker"))
-            dpg.add_button(label="Get threads", callback=get_thread_count)
-            dpg.add_spacer(height=10)
             dpg.add_text("Songs:")
             radio_list = []
             with dpg.group(horizontal=False, tag="music_list"):
@@ -122,6 +130,24 @@ def main():
                 dpg.add_text("Change current music speed (Press Ctrl + LMB to input manually)")
                 dpg.add_slider_int(label="", min_value=1, max_value=800, default_value=1, tag="speed_slider", no_input=False)
                 dpg.add_button(label="Save", callback=change_current_music_speed)
+    
+    # Collapsible Settings Window
+    with dpg.window(label="Advanced Settings", tag="advanced_settings", show=False):
+        dpg.add_text("Keybinds:")
+
+        with dpg.group(horizontal=True):
+            dpg.add_text("Start key: ")
+            dpg.add_button(label=f"{config.get_json()['music']['start_key']['name']}", callback=update_hotkeys_binds, user_data="start_key")
+        with dpg.group(horizontal=True):
+            dpg.add_text(f"Stop key: ")
+            dpg.add_button(label=f"{config.get_json()['music']['stop_key']['name']}", callback=update_hotkeys_binds, user_data="stop_key")
+        
+        dpg.add_text("Key mapping:")
+        for key in config["music"]["key_mapping"].keys():
+            with dpg.group(horizontal=True):
+                dpg.add_text(f"Note {key}: ")
+                dpg.add_button(label=f"{config.get_json()['music']['key_mapping'][key]}", callback=update_hotkeys_binds, user_data=f"{key}")
+
 
 
 
@@ -136,7 +162,7 @@ def main():
         height = dpg.get_viewport_client_height()
         dpg.set_item_width("main_window", width)
         dpg.set_item_height("main_window", height)
-        dpg.set_item_height("content_area", height - 50)
+        dpg.set_item_height("content_area", height - 70)
 
     dpg.set_viewport_resize_callback(resize_content)
     resize_content(None, None)

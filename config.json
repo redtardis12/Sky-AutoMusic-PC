@@ -1,16 +1,22 @@
 {
     "music": {
-        "start_key": "/",
-        "stop_key": "q",
-        "key_mapping" : {
+        "start_key": {
+            "name": "/",
+            "scan_code": 53
+        },
+        "stop_key": {
+            "name": "q",
+            "scan_code": 16
+        },
+        "key_mapping": {
             "0": "y",
             "1": "u",
             "2": "i",
-            "3": "o", 
+            "3": "o",
             "4": "p",
             "5": "h",
-            "6": "j", 
-            "7": "k", 
+            "6": "j",
+            "7": "k",
             "8": "l",
             "9": ";",
             "10": "n",
