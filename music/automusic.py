@@ -31,52 +31,15 @@ def convert_to_utf8(input_file, output_file):
         json.dump(json_data, file, ensure_ascii=False, indent=4)
 
 
-def assign_hotkey(field):
-    print(f"Press any key to assign as your hotkey for {field}...")
-    event = keyboard.read_event(suppress=True)
-    if event.event_type == keyboard.KEY_DOWN:
-        scan_code = event.scan_code
-        name = event.name
-        if name == 'esc':
-            return
-        
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-        
-        config["music"][field] = {
-            "name": name,
-            "scan_code": scan_code
-        }
-        
-        with open('config.json', 'w') as file:
-            json.dump(config, file, indent=4)
-        
-        return name
-
-def assign_note_key(note_key):
-    event = keyboard.read_event(suppress=True)
-    if event.event_type == keyboard.KEY_DOWN:
-        name = event.name
-        if name == 'esc':
-            return
-        
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-        
-        config["music"]["key_mapping"][note_key] = name
-        
-        with open('config.json', 'w') as file:
-            json.dump(config, file, indent=4)
-        
-        return name
-
 class MusicHandler:
     exitProgram = False
     pauseProgram = False
     data = None
+    config = None
 
-    def __init__(self, file_path, max_notes, curr_note):
+    def __init__(self, file_path, max_notes, curr_note, config):
         self.file_path = file_path
+        self.config = config
         self.data = self.read_json_file(file_path)
 
         notes = self.data[0]['songNotes']
@@ -93,9 +56,8 @@ class MusicHandler:
     
 
     def get_hotkeys(self):
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-            return config["music"]["start_key"]["scan_code"], config["music"]["stop_key"]["scan_code"]
+        keys = self.config.read_config()["music"]
+        return keys["start_key"]["scan_code"], keys["stop_key"]["scan_code"]
 
     def read_json_file(self, file_path):
         convert_to_utf8(self.file_path, self.file_path)
@@ -115,10 +77,7 @@ class MusicHandler:
 
         hold_time = 0.05
 
-        # Define a simple mapping of numbers to keyboard keys.
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-        key_mapping = config["music"]["key_mapping"]
+        key_mapping = self.config.read_config()["music"]["key_mapping"]
 
         notes_dict = {}
         for note in notes:
@@ -155,5 +114,5 @@ class MusicHandler:
 
             last_time_ms = current_time_ms
 
-def mstart(file, max_notes, curr_note):
-    ms = MusicHandler(file, max_notes, curr_note)
+def mstart(file, max_notes, curr_note, config):
+    ms = MusicHandler(file, max_notes, curr_note, config)

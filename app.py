@@ -1,7 +1,7 @@
 import os
 import shutil
 import multiprocessing
-from music.automusic import mstart, assign_hotkey, assign_note_key
+from music.automusic import mstart
 from config import ConfigHandler
 import dearpygui.dearpygui as dpg
 import threading
@@ -44,7 +44,7 @@ def music_hotkeys():
         f = os.path.join("music/songs", selected_song)
         m = multiprocessing.Value('i', 1)
         c = multiprocessing.Value('i', 0)
-        music_proc = multiprocessing.Process(target=mstart, args=(f,m,c))
+        music_proc = multiprocessing.Process(target=mstart, args=(f,m,c, config))
         music_proc.start()
         dpg.set_item_label("play_btn", "Pause")
         print("Started music")
@@ -72,6 +72,7 @@ def update_progress_bar():
     while c.value < m.value and m.value > 0 and music_proc.is_alive():
         progress = c.value / m.value
         dpg.set_value("progress_bar", min(progress, 1.0))
+    dpg.set_value("progress_bar", 0)
 
 
 def show_current_music_speed():
@@ -98,13 +99,18 @@ def update_hotkeys_binds(sender, app_data, user_data):
     if music_proc:
         stop_hotkeys()
     dpg.set_item_label(sender, config.assign_hotkey(user_data))
+
+
+def update_always_on_top(sender, app_data, user_data):
+    dpg.configure_viewport(0, always_on_top=app_data)
+    config.set_always_on_top(app_data)
     
         
     
 
 def main():
     dpg.create_context()
-    dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600)
+    dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600, always_on_top=config.read_config()["app"]["always_on_top"])
 
     # Main window
     with dpg.window(label="Main", no_title_bar=True, no_resize=True, no_move=True, no_close=True, tag="main_window"):
@@ -132,22 +138,26 @@ def main():
                 dpg.add_button(label="Save", callback=change_current_music_speed)
     
     # Collapsible Settings Window
-    with dpg.window(label="Advanced Settings", tag="advanced_settings", show=False):
+    with dpg.window(label="Advanced Settings", tag="advanced_settings", show=False, modal=True, width=400):
         dpg.add_text("Keybinds:")
 
         with dpg.group(horizontal=True):
             dpg.add_text("Start key: ")
-            dpg.add_button(label=f"{config.get_json()['music']['start_key']['name']}", callback=update_hotkeys_binds, user_data="start_key")
+            dpg.add_button(label=f"{config.read_config()['music']['start_key']['name']}", callback=update_hotkeys_binds, user_data="start_key")
         with dpg.group(horizontal=True):
             dpg.add_text(f"Stop key: ")
-            dpg.add_button(label=f"{config.get_json()['music']['stop_key']['name']}", callback=update_hotkeys_binds, user_data="stop_key")
+            dpg.add_button(label=f"{config.read_config()['music']['stop_key']['name']}", callback=update_hotkeys_binds, user_data="stop_key")
         
         dpg.add_text("Key mapping:")
-        for key in config["music"]["key_mapping"].keys():
+        for key in config.read_config()["music"]["key_mapping"].keys():
             with dpg.group(horizontal=True):
                 dpg.add_text(f"Note {key}: ")
-                dpg.add_button(label=f"{config.get_json()['music']['key_mapping'][key]}", callback=update_hotkeys_binds, user_data=f"{key}")
+                dpg.add_button(label=f"{config.read_config()['music']['key_mapping'][key]}", callback=update_hotkeys_binds, user_data=f"{key}")
 
+        dpg.add_text("App settings:")
+        with dpg.group(horizontal=True):
+            dpg.add_text("Always on top: ")
+            dpg.add_checkbox(default_value=config.read_config()["app"]["always_on_top"], callback=update_always_on_top)
 
 
 
