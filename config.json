@@ -1,12 +1,12 @@
 {
     "music": {
         "start_key": {
-            "name": "/",
-            "scan_code": 53
+            "name": "v",
+            "scan_code": 47
         },
         "stop_key": {
-            "name": "q",
-            "scan_code": 16
+            "name": "b",
+            "scan_code": 48
         },
         "key_mapping": {
             "0": "y",
@@ -28,6 +28,6 @@
     },
     "app": {
         "always_on_top": true,
-        "music_dir": "music/songs"
+        "music_dir": "D:\\Main\\Programming\\Programs\\Sky bot\\dist\\music\\songs"
     }
 }

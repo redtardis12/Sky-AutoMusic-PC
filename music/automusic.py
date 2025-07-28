@@ -109,7 +109,6 @@ class MusicHandler:
             key_to_press = note[1]
             if key_to_press:
                 pydirectinput.hotkey(*key_to_press, wait=hold_time)
-                # print(f"Pressed {key_to_press} at time {current_time_ms}, note {curr_note.value}")
                 curr_note.value += 1
 
             last_time_ms = current_time_ms

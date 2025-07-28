@@ -5,12 +5,12 @@ import json
 SCHEMA = {
     "music": {
         "start_key": {
-            "name": "/",
-            "scan_code": 53
+            "name": "v",
+            "scan_code": 47
         },
         "stop_key": {
-            "name": "q",
-            "scan_code": 16
+            "name": "b",
+            "scan_code": 48
         },
         "key_mapping": {
             "0": "y",
@@ -45,11 +45,10 @@ class ConfigHandler:
         try:
             with open(self.file_path, 'r') as f:
                 self._config = json.load(f)
-        except FileNotFoundError:
+                self._config = {**SCHEMA, **self._config}
+        except (FileNotFoundError, json.JSONDecodeError):
             self._config = SCHEMA
             self.save()
-        except json.JSONDecodeError:
-            raise ValueError(f"Invalid JSON in {self.file_path}")
     
     def save(self):
         with open(self.file_path, 'w') as f:

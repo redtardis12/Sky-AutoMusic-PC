@@ -7,6 +7,8 @@ from config import ConfigHandler
 import dearpygui.dearpygui as dpg
 import threading
 import json
+import sys
+import webbrowser
 
 music_proc = None
 selected_song = None
@@ -14,8 +16,20 @@ config = ConfigHandler("config.json")
 music_folder = config.read_config()["app"]["music_dir"]
 music_folder = music_folder if music_folder else "music/songs/"
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 def get_music_files():
+    if not os.path.exists(music_folder):
+        if os.path.relpath(music_folder).startswith(("music/songs", "music\songs")):
+            os.makedirs(music_folder, exist_ok=True)
+            return []
     radio_list = []
     for midi_file in os.listdir(music_folder):
         if midi_file.endswith(".txt") or midi_file.endswith(".json"):
@@ -42,9 +56,11 @@ def copy_music(sender, app_data, user_data):
         try:
             shutil.copy(file_path, new_file_path)
         except Exception as err:
-            print(f"Error copying {file_path}: {err}")
+            raise Exception(f"Error copying {file_path} to {new_file_path}: {err}")
     dpg.configure_item("radio_btn", items=get_music_files())
 
+
+# Manages the music playback process by starting or stopping it based on the current state
 def music_hotkeys():
     global music_proc, selected_song, m, c, bar_thread
     if not selected_song:
@@ -55,13 +71,13 @@ def music_hotkeys():
         c = multiprocessing.Value('i', 0)
         music_proc = multiprocessing.Process(target=mstart, args=(f,m,c, config))
         music_proc.start()
-        dpg.set_item_label("play_btn", "Pause")
+        dpg.set_item_label("play_btn", "Stop")
         print("Started music")
         bar_thread = threading.Thread(target=update_progress_bar, args=(), daemon=True)
         bar_thread.start()
     else:
         stop_hotkeys()
-        dpg.set_item_label("play_btn", "Play")
+        dpg.set_item_label("play_btn", "Start")
         m = multiprocessing.Value('i', 1)
         c = multiprocessing.Value('i', 0)
         print("Stopped music")
@@ -75,7 +91,6 @@ def restart_hotkeys(sender, app_data, user_data):
     if music_proc:
         stop_hotkeys()
         music_hotkeys()
-        print("Restarted music")
 
 def update_progress_bar():
     while c.value < m.value and m.value > 0 and music_proc.is_alive():
@@ -119,9 +134,12 @@ def update_music_dir(sender, app_data, user_data):
     global music_folder
     if music_proc:
         stop_hotkeys()
-    music_folder = app_data["file_path_name"]
-    config.set_music_dir(music_folder)
-    dpg.configure_item("radio_btn", items=get_music_files())
+    music_dir = app_data["file_path_name"]
+    if os.path.isdir(music_dir):
+        music_folder = music_dir
+        config.set_music_dir(music_folder)
+        dpg.configure_item("radio_btn", items=get_music_files())
+    dpg.configure_item("music_folder_input", default_value=f"{(music_folder[:20] + '...') if len(music_folder) > 40 else music_folder}")
 
 
 def update_always_on_top(sender, app_data, user_data):
@@ -134,13 +152,20 @@ def update_always_on_top(sender, app_data, user_data):
 def main():
     dpg.create_context()
     apply_dark_purple_theme()
-    dpg.create_viewport(title='Sky: Keys interactive', width=800, height=600, always_on_top=config.read_config()["app"]["always_on_top"])
+    dpg.create_viewport(title='Sky AutoMusic', width=800, height=600, always_on_top=config.read_config()["app"]["always_on_top"])
+    icon = resource_path("icon.ico")
+    dpg.set_viewport_small_icon(icon)
+    dpg.set_viewport_large_icon(icon)
 
     # Main window
     with dpg.window(label="Main", no_title_bar=True, no_resize=True, no_move=True, no_close=True, tag="main_window"):
         with dpg.menu_bar():
             dpg.add_menu_item(label="Add music", callback=lambda: dpg.show_item("file_picker"))
             dpg.add_menu_item(label="Settings", callback=lambda: dpg.show_item("advanced_settings"))
+            with dpg.menu(label="Help"):
+                dpg.add_menu_item(label="How to use?", callback=lambda: dpg.show_item("howto_window"))
+                dpg.add_menu_item(label="About", callback=lambda: dpg.show_item("about_window"))
+
         with dpg.child_window(tag="content_area", autosize_x=True, height=-50, horizontal_scrollbar=False):
             dpg.add_text("Songs:")
             radio_list = get_music_files()
@@ -149,7 +174,7 @@ def main():
 
         # Docked bottom bar
         with dpg.group(horizontal=True):
-            dpg.add_button(label="Play", tag="play_btn", width=60, callback=music_hotkeys)
+            dpg.add_button(label="Start", tag="play_btn", width=60, callback=music_hotkeys)
             dpg.add_progress_bar(tag="progress_bar", default_value=0.0, width=600)
             dpg.add_button(label="Edit..", width=70, tag="settings_btn")
 
@@ -158,15 +183,34 @@ def main():
                 dpg.add_slider_int(label="", min_value=1, max_value=800, default_value=1, tag="speed_slider", no_input=False)
                 dpg.add_button(label="Save", callback=change_current_music_speed)
     
-    # Collapsible Settings Window
+    with dpg.window(label="How to use?", tag="howto_window", show=False, modal=True, width=750, height=400):
+        dpg.add_text("How to use:", color=(0, 255, 0))
+        dpg.add_text("1. Download the music sheet file from anywhere in .txt or .json format.")
+        dpg.add_text("2. Press the 'Add music' button and select the music sheet file (you can add multiple songs).")
+        dpg.add_text("You can also just put files in the 'app_location/music/songs' folder (it can be changed in settings).")
+        dpg.add_separator()
+        dpg.add_text("3. Press 'Start'. After that the app will wait for you to press a start keybind while in the game.")
+        dpg.add_text("Then press pause keybind to stop the music while it is playing")
+        dpg.add_text("You can change both keybinds in the settings.")
+        dpg.add_separator()
+        dpg.add_text("4. Press the 'Edit' button and change the music speed.")
+        dpg.add_text("5. Press the 'Stop' button again to stop the app detecting your keybinds.")
+    
+    with dpg.window(label="About", tag="about_window", show=False, modal=True, width=400, height=200):
+        dpg.add_text("Sky AutoMusic", color=(0, 255, 0))
+        dpg.add_text("Version 1.0.0")
+        dpg.add_text("Author: killey_")
+        dpg.add_button(label="Report Issues on Github", callback=lambda:webbrowser.open("https://github.com/redtardis12/Sky-Keys-interactive"))
+    
+    # Settings Window
     with dpg.window(label="Settings", tag="advanced_settings", show=False, modal=True, width=400):
         dpg.add_text("Keybinds:")
 
         with dpg.group(horizontal=True):
-            dpg.add_text("Start key: ")
+            dpg.add_text("Play key: ")
             dpg.add_button(label=f"{config.read_config()['music']['start_key']['name']}", callback=update_hotkeys_binds, user_data="start_key", width=100, indent=100)
         with dpg.group(horizontal=True):
-            dpg.add_text(f"Stop key: ")
+            dpg.add_text(f"Pause key: ")
             dpg.add_button(label=f"{config.read_config()['music']['stop_key']['name']}", callback=update_hotkeys_binds, user_data="stop_key", width=100, indent=100)
         
         with dpg.collapsing_header(label="Note keybinds"):
@@ -188,7 +232,8 @@ def main():
         
         with dpg.group(horizontal=True):
             dpg.add_text("Music folder: ")
-            dpg.add_button(label=f"{(music_folder[:20] + '..') if len(music_folder) > 30 else music_folder}", callback=lambda: dpg.show_item("folder_picker"), width=100)
+            dpg.add_input_text(default_value=f"{(music_folder[:20] + '..') if len(music_folder) > 40 else music_folder}", tag="music_folder_input", readonly=True, width=200)
+            dpg.add_button(label=f"..", callback=lambda: dpg.show_item("folder_picker"), width=40)
         
         with dpg.window(modal=True, tag="hotkey_popup", no_title_bar=True, no_resize=True, no_move=True, no_close=True, width=400, height=100, show=False):
             dpg.add_text("Press a key to assign a hotkey")
@@ -197,14 +242,12 @@ def main():
         dpg.add_file_dialog(modal=True, directory_selector=True, show=False, callback=update_music_dir, tag="folder_picker", width=700, height=400)
 
 
-
-    # File picker
     with dpg.file_dialog(directory_selector=False, show=False, callback=copy_music, tag="file_picker", width=700, height=400):
         dpg.add_file_extension(".txt")
         dpg.add_file_extension(".json")
     
 
-    # Resize the child window to leave 50px for the bottom bar
+    # Resize the child window to leave 90px for the bottom bar
     def resize_content(sender, app_data):
         width = dpg.get_viewport_client_width()
         height = dpg.get_viewport_client_height()
@@ -230,11 +273,18 @@ def apply_dark_purple_theme():
             dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (40, 40, 60), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (100, 60, 150), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (130, 70, 200), category=dpg.mvThemeCat_Core)
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (150, 90, 240), category=dpg.mvThemeCat_Core)
 
             # Buttons
             dpg.add_theme_color(dpg.mvThemeCol_Button, (90, 50, 160), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (120, 70, 200), category=dpg.mvThemeCat_Core)
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (150, 90, 240), category=dpg.mvThemeCat_Core)
+
+            # Radio buttons
+            dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (150, 90, 240), category=dpg.mvThemeCat_Core)
+
+            # Progress bars
+            dpg.add_theme_color(dpg.mvThemeCol_PlotHistogram, (140, 80, 240), category=dpg.mvThemeCat_Core)
 
             # Text
             dpg.add_theme_color(dpg.mvThemeCol_Text, (220, 220, 255), category=dpg.mvThemeCat_Core)
