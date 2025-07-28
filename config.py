@@ -1,6 +1,41 @@
 import keyboard
 import json
 
+
+SCHEMA = {
+    "music": {
+        "start_key": {
+            "name": "/",
+            "scan_code": 53
+        },
+        "stop_key": {
+            "name": "q",
+            "scan_code": 16
+        },
+        "key_mapping": {
+            "0": "y",
+            "1": "u",
+            "2": "i",
+            "3": "o",
+            "4": "p",
+            "5": "h",
+            "6": "j",
+            "7": "k",
+            "8": "l",
+            "9": ";",
+            "10": "n",
+            "11": "m",
+            "12": ",",
+            "13": ".",
+            "14": "/"
+        }
+    },
+    "app": {
+        "always_on_top": True,
+        "music_dir": "music/songs"
+    }
+}
+
 class ConfigHandler:
     def __init__(self, file_path):
         self.file_path = file_path
@@ -11,41 +46,38 @@ class ConfigHandler:
             with open(self.file_path, 'r') as f:
                 self._config = json.load(f)
         except FileNotFoundError:
-            self._config = {}
+            self._config = SCHEMA
+            self.save()
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON in {self.file_path}")
     
-    def save(self, new_config=None):
-        if new_config is not None:
-            self._config = new_config
+    def save(self):
         with open(self.file_path, 'w') as f:
             json.dump(self._config, f, indent=4)
     
     def read_config(self):
-        return self._config
+        return {**self._config}
     
     def assign_hotkey(self, field):
         event = keyboard.read_event(suppress=True)
-        if event.event_type == keyboard.KEY_DOWN:
+        if event.event_type == keyboard.KEY_DOWN and event.name != 'esc':
             scan_code = event.scan_code
             name = event.name
-            if name == 'esc':
-                return
 
-            new_config = self._config
-
-            if field == "start_key" or field == "stop_key":
-                new_config["music"][field] = {
-                    "name": name,
-                    "scan_code": scan_code
-                }
+            field_config = {"name": name, "scan_code": scan_code} if field in ["start_key", "stop_key"] else name
+            if field in ["start_key", "stop_key"]:
+                self._config["music"][field] = field_config
             else:
-                new_config["music"]["key_mapping"][field] = name
+                self._config["music"]["key_mapping"][field] = field_config
 
-            self.save(new_config)
+            self.save()
 
             return name
     
     def set_always_on_top(self, value):
         self._config["app"]["always_on_top"] = value
+        self.save()
+
+    def set_music_dir(self, value):
+        self._config["app"]["music_dir"] = value
         self.save()

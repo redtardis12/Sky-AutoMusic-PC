@@ -27,6 +27,7 @@
         }
     },
     "app": {
-        "always_on_top": true
+        "always_on_top": true,
+        "music_dir": "music/songs"
     }
 }
