@@ -1,32 +1,21 @@
 
-# Sky-Keys-interactive
-An app for the PC version of Sky:COTL to key bind expressions and auto play music with sheets
-[![J4bp4AN.md.png](https://iili.io/J4bp4AN.md.png)](https://freeimage.host/i/J4bp4AN)
+# Sky-AutoMusic-PC
+An app for the PC version of Sky:COTL to automatically play music with sheets
 
-[![J4bppHl.md.png](https://iili.io/J4bppHl.md.png)](https://freeimage.host/i/J4bppHl)
+[![F8Z3iD7.md.png](https://iili.io/F8Z3iD7.md.png)](https://freeimage.host/i/F8Z3iD7)
 
-## This is an initial source sync made just for the feedback, not an actual release !!!
-<br />
+[![F8ZKaCF.md.png](https://iili.io/F8ZKaCF.md.png)](https://freeimage.host/i/F8ZKaCF)
 
-### You can now download the pre-relase version [here](https://github.com/redtardis12/Sky-Keys-interactive/releases/tag/pre-release)
-<ins>**Just extract the archive and launch .exe**</ins>
-The code haven't been revised and just a proof of concept
-<br />
 
-### Currently working features
-> Automatic music player
-#### "emotes" tab doesn't do anything for now
-<br />
+Just extract the archive and launch .exe
 
 ### How to use?
-1. Open the app, go to music Tab
-2. Download any json format sheet for sky from [here](https://specy.github.io/skyMusic/) as an example
-3. Press a **"+"** button and choose your downloaded song.
-4. Choose it from the list and press **"play"** button at the bottom right - this will start listening for hotkeys to start and stop the music. Got to sky, pick your instrument and press the keybind. The default ones are **"/"** to start playing and **"q"** to stop. You can change them in `config.json`file in the same directory, as well as all the notes buttons. 
-5. You can change the speed of the music by going into the .txt file of the music itself and adjust its value under the **"bpm"** field, or edit it somewhere like Sky Nightly
-<br />
-<br />
-<br />
+
+1. Download any json format sheet for sky from [here](https://specy.github.io/skyMusic/) as an example
+2. Open the app and press the **Add music** button and select the music sheet file (you can add multiple songs). You can also just put files in the `app_location/music/songs` folder (it can be changed in settings)
+3. Choose the music from the list and press 'Start'. After that the app will wait for you to press a start keybind while in the game. Then press pause keybind to stop the music while it is playing (**V** and **B** by deafult). You can change both keybinds in the settings.
+4. Press the **Edit** button and change the music speed in **BPM**
+
 
 ### Using from source
 1. Have the latest version of python installed on your system from [python.org](https://python.org)
@@ -39,18 +28,9 @@ The code haven't been revised and just a proof of concept
 ```bash
     python app.py
 ```
-4. For building use flet packaging with pyinstaller:
-```bash
-    pip install pyinstaller
-    flet pack app.py
-```
-or more optimized variant with UPX
-```bash
-    pyinstaller --noconsole --onefile --upx-dir [your upx installation folder here] app.py
-```
 
 
 ### FAQ
 **Q:** Can i get banned for this?
 
-**A:** You shouldn't. The app just simulates key presses like any other macro and **does not interfere with the game in any way**
+**A:** No. The app just simulates key presses like any other macro and **does not interfere with the game in any way**

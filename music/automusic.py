@@ -5,6 +5,7 @@ import pydirectinput
 import codecs
 import pygetwindow as gw
 import chardet
+from multiprocessing import Value, Manager
 
 def convert_to_utf8(input_file, output_file):
     """
@@ -34,9 +35,11 @@ class MusicHandler:
     exitProgram = False
     pauseProgram = False
     data = None
+    config = None
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, max_notes, curr_note, config):
         self.file_path = file_path
+        self.config = config
         self.data = self.read_json_file(file_path)
 
         notes = self.data[0]['songNotes']
@@ -49,13 +52,12 @@ class MusicHandler:
                 self.pauseProgram = False
                 time.sleep(2)
                 if gw.getActiveWindowTitle() == 'Sky':
-                    self.simulate_keyboard_presses(notes, bpm)
+                    self.simulate_keyboard_presses(notes, bpm, max_notes, curr_note)
     
 
     def get_hotkeys(self):
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-            return config["music"]["start_key"], config["music"]["stop_key"]
+        keys = self.config.read_config()["music"]
+        return keys["start_key"]["scan_code"], keys["stop_key"]["scan_code"]
 
     def read_json_file(self, file_path):
         convert_to_utf8(self.file_path, self.file_path)
@@ -71,14 +73,11 @@ class MusicHandler:
     def pause(self):
         self.pauseProgram = True
     
-    def simulate_keyboard_presses(self, notes, bpm):
+    def simulate_keyboard_presses(self, notes, bpm, max_notes, curr_note):
 
         hold_time = 0.05
 
-        # Define a simple mapping of numbers to keyboard keys.
-        with open('config.json', 'r') as file:
-            config = json.load(file)
-        key_mapping = config["music"]["key_mapping"]
+        key_mapping = self.config.read_config()["music"]["key_mapping"]
 
         notes_dict = {}
         for note in notes:
@@ -94,6 +93,9 @@ class MusicHandler:
         last_time_ms = 0
         pydirectinput.PAUSE=None
 
+        max_notes.value = len(notes)
+        curr_note.value = 0
+
         for note in notes:
             if self.pauseProgram: break
             current_time_ms = note[0]
@@ -107,9 +109,9 @@ class MusicHandler:
             key_to_press = note[1]
             if key_to_press:
                 pydirectinput.hotkey(*key_to_press, wait=hold_time)
-                print(f"Pressed {key_to_press} at time {current_time_ms}")
+                curr_note.value += 1
 
             last_time_ms = current_time_ms
 
-def mstart(file):
-    ms = MusicHandler(file)
+def mstart(file, max_notes, curr_note, config):
+    ms = MusicHandler(file, max_notes, curr_note, config)

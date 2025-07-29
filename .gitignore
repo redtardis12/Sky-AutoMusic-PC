@@ -163,3 +163,6 @@ emotes/tests
 skyvenv
 music/songs/*
 !music/songs/nomedia
+.venv
+dist
+build
