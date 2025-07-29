@@ -1,6 +1,12 @@
-Initial Pre-release
-
-WORK-IN-PROGRESS
+1.0.0
+- UI rewrite from Flet to DearPyGUI
+- Support for different keyboard language layouts
+- Settings tab with advanced app and keybind configurations
+- Better file IO handling
+- Progress bar
+- Help and about tab
+- Music BPM can now be changed in the app
+- Less dependencies and file size
 
 Pre-ver 2
 - some major changes to pydirectinput module
@@ -8,9 +14,6 @@ Pre-ver 2
 - hotkeys now only trigger when the game window is active wich is convenient
 - app now automatically converts all sheet jsons to UTF-8
 - direct json import support fixed
-
-
-
 
 
 Pre-ver 1

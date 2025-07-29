@@ -26,15 +26,18 @@ def resource_path(relative_path):
 
 
 def get_music_files():
-    if not os.path.exists(music_folder):
-        if os.path.relpath(music_folder).startswith(("music/songs", "music\songs")):
-            os.makedirs(music_folder, exist_ok=True)
-            return []
-    radio_list = []
-    for midi_file in os.listdir(music_folder):
-        if midi_file.endswith(".txt") or midi_file.endswith(".json"):
-            radio_list.append(midi_file)
-    return radio_list
+    try:
+        if not os.path.exists(music_folder):
+            if os.path.relpath(music_folder).startswith(("music/songs", "music\songs")):
+                os.makedirs(music_folder, exist_ok=True)
+                return []
+        radio_list = []
+        for midi_file in os.listdir(music_folder):
+            if midi_file.endswith(".txt") or midi_file.endswith(".json"):
+                radio_list.append(midi_file)
+        return radio_list
+    except:
+        return []
 
 def stop_hotkeys():
     global music_proc
@@ -152,7 +155,7 @@ def update_always_on_top(sender, app_data, user_data):
 def main():
     dpg.create_context()
     apply_dark_purple_theme()
-    dpg.create_viewport(title='Sky AutoMusic', width=800, height=600, always_on_top=config.read_config()["app"]["always_on_top"])
+    dpg.create_viewport(title='Sky AutoMusic PC', width=800, height=600, always_on_top=config.read_config()["app"]["always_on_top"])
     icon = resource_path("icon.ico")
     dpg.set_viewport_small_icon(icon)
     dpg.set_viewport_large_icon(icon)
@@ -186,21 +189,22 @@ def main():
     with dpg.window(label="How to use?", tag="howto_window", show=False, modal=True, width=750, height=400):
         dpg.add_text("How to use:", color=(0, 255, 0))
         dpg.add_text("1. Download the music sheet file from anywhere in .txt or .json format.")
-        dpg.add_text("2. Press the 'Add music' button and select the music sheet file (you can add multiple songs).")
-        dpg.add_text("You can also just put files in the 'app_location/music/songs' folder (it can be changed in settings).")
+        dpg.add_text("2. Press the 'Add music' button and select the music sheet file (you can add multiple songs" \
+        "\nYou can also just put files in the 'app_location/music/songs' folder (it can be changed in settings).")
         dpg.add_separator()
-        dpg.add_text("3. Press 'Start'. After that the app will wait for you to press a start keybind while in the game.")
-        dpg.add_text("Then press pause keybind to stop the music while it is playing")
-        dpg.add_text("You can change both keybinds in the settings.")
+        dpg.add_text("3. Choose the music from the list and press 'Start'. " \
+        "\nAfter that the app will wait for you to press a Start keybind while in the game.")
+        dpg.add_text("You can press pause keybind to stop the music while it is playing")
+        dpg.add_text("Buttons are V and B by default. You can change both keybinds in the settings.", color=(0, 255, 0))
         dpg.add_separator()
         dpg.add_text("4. Press the 'Edit' button and change the music speed.")
         dpg.add_text("5. Press the 'Stop' button again to stop the app detecting your keybinds.")
     
     with dpg.window(label="About", tag="about_window", show=False, modal=True, width=400, height=200):
-        dpg.add_text("Sky AutoMusic", color=(0, 255, 0))
+        dpg.add_text("Sky AutoMusic PC", color=(0, 255, 0))
         dpg.add_text("Version 1.0.0")
         dpg.add_text("Author: killey_")
-        dpg.add_button(label="Report Issues on Github", callback=lambda:webbrowser.open("https://github.com/redtardis12/Sky-Keys-interactive"))
+        dpg.add_button(label="Report Issues on Github", callback=lambda:webbrowser.open("https://github.com/redtardis12/Sky-AutoMusic-PC"))
     
     # Settings Window
     with dpg.window(label="Settings", tag="advanced_settings", show=False, modal=True, width=400):
@@ -239,7 +243,7 @@ def main():
             dpg.add_text("Press a key to assign a hotkey")
             dpg.add_text("(Press Esc to cancel)")
         
-        dpg.add_file_dialog(modal=True, directory_selector=True, show=False, callback=update_music_dir, tag="folder_picker", width=700, height=400)
+        dpg.add_file_dialog(label="Select music folder", modal=True, directory_selector=True, show=False, callback=update_music_dir, tag="folder_picker", width=700, height=400)
 
 
     with dpg.file_dialog(directory_selector=False, show=False, callback=copy_music, tag="file_picker", width=700, height=400):

@@ -28,6 +28,6 @@
     },
     "app": {
         "always_on_top": true,
-        "music_dir": "D:\\Main\\Programming\\Programs\\Sky bot\\dist\\music\\songs"
+        "music_dir": "music/songs/"
     }
 }

@@ -51,8 +51,13 @@ class ConfigHandler:
             self.save()
     
     def save(self):
-        with open(self.file_path, 'w') as f:
-            json.dump(self._config, f, indent=4)
+        if not self._config:
+            return
+        try:
+            with open(self.file_path, 'w') as f:
+                json.dump(self._config, f, indent=4)
+        except (FileNotFoundError, IOError, TypeError) as e:
+            raise Exception(f"Failed to save config at {self.file_path}: {e}")
     
     def read_config(self):
         return {**self._config}
