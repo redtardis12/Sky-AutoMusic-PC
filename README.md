@@ -7,7 +7,9 @@ An app for the PC version of Sky:COTL to automatically play music with sheets
 [![F8ZKaCF.md.png](https://iili.io/F8ZKaCF.md.png)](https://freeimage.host/i/F8ZKaCF)
 
 
-Just extract the archive and launch .exe
+
+## [Download here](https://github.com/redtardis12/Sky-AutoMusic-PC/releases/tag/v1.0.0)
+### Just extract the archive and launch SkyAutoMusic.exe
 
 ### How to use?
 
